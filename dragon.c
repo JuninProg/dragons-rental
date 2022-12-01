@@ -13,55 +13,6 @@ char* DRAGONS_FILE_PATH = "./data/dragons.bin";
 
 Dragon* DRAGONS;
 
-int EndDragons() {
-  FILE *dragonsFile = fopen(DRAGONS_FILE_PATH, "wb");
-
-  if (dragonsFile == NULL) {
-    return 1;
-  }
-
-  fwrite(DRAGONS, sizeof(Dragon), MAX_DRAGONS, dragonsFile);
-
-  fclose(dragonsFile);
-
-  return 0;
-}
-
-int ResizeDragons() {
-  int actualPercent = TOTAL_DRAGONS * 100 / MAX_DRAGONS;
-
-  if (actualPercent > 0 && actualPercent < 40) {
-    Dragon* DRAGONS_COPY = (Dragon*) malloc(TOTAL_DRAGONS * sizeof(Dragon));
-
-    if (!DRAGONS_COPY) {
-      return 1;
-    }
-
-    int i;
-
-    for (i = 0; i < MAX_DRAGONS; i++) {
-      if (DRAGONS[i].code != -1) {
-        DRAGONS_COPY[i] = DRAGONS[i];
-      }
-    }
-
-    int newSize = MAX_DRAGONS;
-
-    while ((TOTAL_DRAGONS * 100 / newSize) < 60) {
-      newSize--;
-    }
-
-    
-    DRAGONS = (Dragon*) realloc(DRAGONS, newSize * sizeof(Dragon));
-
-    for (i = 0; i < TOTAL_DRAGONS; i++) {
-      DRAGONS[i] = DRAGONS_COPY[i];
-    }
-  }
-
-  return 0;
-}
-
 Dragon GetBlankDragon() {
   Dragon blankDragon;
 
@@ -73,6 +24,59 @@ Dragon GetBlankDragon() {
   blankDragon.stock = 0;
 
   return blankDragon;
+}
+
+int EndDragons() {
+  FILE *dragonsFile = fopen(DRAGONS_FILE_PATH, "wb");
+
+  if (dragonsFile != NULL) {
+    fwrite(DRAGONS, sizeof(Dragon), MAX_DRAGONS, dragonsFile);
+    fclose(dragonsFile);
+  }
+
+  free(DRAGONS);
+
+  return 0;
+}
+
+int ResizeDragons() {
+   int actualPercent = TOTAL_DRAGONS * 100 / MAX_DRAGONS;
+
+  if (actualPercent > 0 && actualPercent < 40) {
+    int newSize = MAX_DRAGONS;
+
+    while ((TOTAL_DRAGONS * 100 / newSize) < 60) {
+      newSize--;
+    }
+
+    Dragon* newDragons = (Dragon*) malloc(newSize * sizeof(Dragon));
+
+    if (!newDragons) {
+      return 1;
+    }
+
+    int i;
+
+    for (i = 0; i < newSize; i++) {
+      newDragons[i] = GetBlankDragon();
+    }
+
+    int newIndex = 0;
+
+    for (i = 0; i < MAX_DRAGONS; i++) {
+      if (DRAGONS[i].code != -1) {
+        newDragons[newIndex] = DRAGONS[i];
+        newIndex++;
+      }
+    }
+
+    free(DRAGONS);
+
+    DRAGONS = newDragons;
+    MAX_DRAGONS = newSize;
+  }
+
+  return 0;
 }
 
 int InitiateDragons() {
@@ -98,11 +102,16 @@ int InitiateDragons() {
 
     int i;
 
+    Dragon lastDragon;
+
     for (i = 0; i < totalDragons; i++) {
       if (DRAGONS[i].code != -1) {
         TOTAL_DRAGONS++;
+        lastDragon = DRAGONS[i];
       }
     }
+
+    NEXT_DRAGON_CODE = TOTAL_DRAGONS > 0 ? lastDragon.code + 1 : NEXT_DRAGON_CODE;
   } else {
     DRAGONS = (Dragon*) malloc(MAX_DRAGONS * sizeof(Dragon));
   
@@ -142,7 +151,16 @@ int SaveDragon(Dragon dragon) {
   int index = GetDragonsEmptyIndex();
 
   if (index == -1) {
-    return 2;
+    Dragon* newDragons = (Dragon*) realloc(DRAGONS, (MAX_DRAGONS + 1) * sizeof(Dragon));
+
+    if (!newDragons) {
+      return 2;
+    }
+
+    DRAGONS = newDragons;
+    MAX_DRAGONS++;
+
+    index = MAX_DRAGONS - 1;
   }
 
   Element* elementFound = GetElementByCode(dragon.elementCode);

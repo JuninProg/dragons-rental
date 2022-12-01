@@ -5,61 +5,12 @@
 #include "warrior.h"
 #include "rent.h"
 
-int MAX_WARRIORS = 5;
+int MAX_WARRIORS = 2;
 int TOTAL_WARRIORS = 0;
 int NEXT_WARRIOR_CODE = 1;
 char* WARRIORS_FILE_PATH = "./data/warriors.bin";
 
 Warrior* WARRIORS;
-
-int EndWarriors() {
-  FILE *warriorsFile = fopen(WARRIORS_FILE_PATH, "wb");
-
-  if (warriorsFile == NULL) {
-    return 1;
-  }
-
-  fwrite(WARRIORS, sizeof(Warrior), MAX_WARRIORS, warriorsFile);
-
-  fclose(warriorsFile);
-
-  return 0;
-}
-
-int ResizeWarriors() {
-  int actualPercent = TOTAL_WARRIORS * 100 / MAX_WARRIORS;
-
-  if (actualPercent > 0 && actualPercent < 40) {
-    Warrior* WARRIORS_COPY = (Warrior*) malloc(TOTAL_WARRIORS * sizeof(Warrior));
-
-    if (!WARRIORS_COPY) {
-      return 1;
-    }
-
-    int i;
-
-    for (i = 0; i < MAX_WARRIORS; i++) {
-      if (WARRIORS[i].code != -1) {
-        WARRIORS_COPY[i] = WARRIORS[i];
-      }
-    }
-
-    int newSize = MAX_WARRIORS;
-
-    while ((TOTAL_WARRIORS * 100 / newSize) < 60) {
-      newSize--;
-    }
-
-    
-    WARRIORS = (Warrior*) realloc(WARRIORS, newSize * sizeof(Warrior));
-
-    for (i = 0; i < TOTAL_WARRIORS; i++) {
-      WARRIORS[i] = WARRIORS_COPY[i];
-    }
-  }
-
-  return 0;
-}
 
 Warrior GetBlankWarrior() {
   Warrior blankWarrior;
@@ -70,6 +21,63 @@ Warrior GetBlankWarrior() {
   strcpy(blankWarrior.kingdom, "");
 
   return blankWarrior;
+}
+
+int EndWarriors() {
+  FILE *warriorsFile = fopen(WARRIORS_FILE_PATH, "wb");
+
+  if (warriorsFile != NULL) {
+    fwrite(WARRIORS, sizeof(Warrior), MAX_WARRIORS, warriorsFile);
+    fclose(warriorsFile);
+  }
+
+  free(WARRIORS);
+
+  return 0;
+}
+
+int ResizeWarriors() {
+  int actualPercent = TOTAL_WARRIORS * 100 / MAX_WARRIORS;
+
+  if (actualPercent > 0 && actualPercent < 40) {
+    int newSize = MAX_WARRIORS;
+
+    while ((TOTAL_WARRIORS * 100 / newSize) < 60) {
+      newSize--;
+    }
+
+    // deixo buracos no meu array de guerreiros
+    Warrior* newWarriors = (Warrior*) malloc(newSize * sizeof(Warrior));
+
+    if (!newWarriors) {
+      return 1;
+    }
+
+    int i;
+
+    for (i = 0; i < newSize; i++) {
+      newWarriors[i] = GetBlankWarrior();
+    }
+
+    int newIndex = 0;
+
+    for (i = 0; i < MAX_WARRIORS; i++) {
+      if (WARRIORS[i].code != -1) {
+        newWarriors[newIndex] = WARRIORS[i];
+        newIndex++;
+      }
+    }
+
+    free(WARRIORS);
+
+    WARRIORS = newWarriors;
+    MAX_WARRIORS = newSize;
+    
+    // TODO: precisa desse free?
+    // free(newWarriors);
+  }
+
+  return 0;
 }
 
 int InitiateWarriors() {
@@ -95,11 +103,16 @@ int InitiateWarriors() {
 
     int i;
 
+    Warrior lastWarrior;
+
     for (i = 0; i < totalWarriors; i++) {
       if (WARRIORS[i].code != -1) {
         TOTAL_WARRIORS++;
+        lastWarrior = WARRIORS[i];
       }
     }
+
+    NEXT_WARRIOR_CODE = TOTAL_WARRIORS > 0 ? lastWarrior.code + 1 : NEXT_WARRIOR_CODE;
   } else {
     WARRIORS = (Warrior*) malloc(MAX_WARRIORS * sizeof(Warrior));
   
@@ -135,14 +148,22 @@ int SaveWarrior(Warrior warrior) {
   int index = GetWarriorsEmptyIndex();
 
   if (index == -1) {
-    MAX_WARRIORS++;
-    WARRIORS = (Warrior*) realloc(WARRIORS, MAX_WARRIORS * sizeof(Warrior));
+    Warrior* newWarriors = (Warrior*) realloc(WARRIORS, (MAX_WARRIORS + 1) * sizeof(Warrior));
 
-    if (!WARRIORS) {
+    if (!newWarriors) {
       return 1;
     }
 
+    // TODO: precisa desse free para liberar o endereço antigo?
+    // free(WARRIORS);
+
+    WARRIORS = newWarriors;
+    MAX_WARRIORS++;
+
     index = MAX_WARRIORS - 1;
+
+    // TODO: ou precisa desse free para liberar de newWarriors?
+    // free(newWarriors);
   }
 
   warrior.code = NEXT_WARRIOR_CODE;

@@ -13,55 +13,6 @@ char* RENTS_FILE_PATH = "./data/rents.bin";
 
 Rent* RENTS;
 
-int EndRents() {
-  FILE *rentsfile = fopen(RENTS_FILE_PATH, "wb");
-
-  if (rentsfile == NULL) {
-    return 1;
-  }
-
-  fwrite(RENTS, sizeof(Rent), MAX_RENTS, rentsfile);
-
-  fclose(rentsfile);
-
-  return 0;
-}
-
-int ResizeRents() {
-  int actualPercent = TOTAL_RENTS * 100 / MAX_RENTS;
-
-  if (actualPercent > 0 && actualPercent < 40) {
-    Rent* RENTS_COPY = (Rent*) malloc(TOTAL_RENTS * sizeof(Rent));
-
-    if (!RENTS_COPY) {
-      return 1;
-    }
-
-    int i;
-
-    for (i = 0; i < MAX_RENTS; i++) {
-      if (RENTS[i].code != -1) {
-        RENTS_COPY[i] = RENTS[i];
-      }
-    }
-
-    int newSize = MAX_RENTS;
-
-    while ((TOTAL_RENTS * 100 / newSize) < 60) {
-      newSize--;
-    }
-
-    
-    RENTS = (Rent*) realloc(RENTS, newSize * sizeof(Rent));
-
-    for (i = 0; i < TOTAL_RENTS; i++) {
-      RENTS[i] = RENTS_COPY[i];
-    }
-  }
-
-  return 0;
-}
-
 Rent GetBlankRent() {
   Rent blankRent;
 
@@ -73,6 +24,60 @@ Rent GetBlankRent() {
   strcpy(blankRent.endDate, "");
 
   return blankRent;
+}
+
+int EndRents() {
+ FILE *rentsFile = fopen(RENTS_FILE_PATH, "wb");
+
+  if (rentsFile != NULL) {
+    fwrite(RENTS, sizeof(Rent), MAX_RENTS, rentsFile);
+    fclose(rentsFile);
+  }
+
+  free(RENTS);
+
+  return 0;
+}
+
+int ResizeRents() {
+ int actualPercent = TOTAL_RENTS * 100 / MAX_RENTS;
+
+  if (actualPercent > 0 && actualPercent < 40) {
+    int newSize = MAX_RENTS;
+
+    while ((TOTAL_RENTS * 100 / newSize) < 60) {
+      newSize--;
+    }
+
+    // deixo buracos no meu array de locacoes
+    Rent* newRents = (Rent*) malloc(newSize * sizeof(Rent));
+
+    if (!newRents) {
+      return 1;
+    }
+
+    int i;
+
+    for (i = 0; i < newSize; i++) {
+      newRents[i] = GetBlankRent();
+    }
+
+    int newIndex = 0;
+
+    for (i = 0; i < MAX_RENTS; i++) {
+      if (RENTS[i].code != -1) {
+        newRents[newIndex] = RENTS[i];
+        newIndex++;
+      }
+    }
+
+    free(RENTS);
+
+    RENTS = newRents;
+    MAX_RENTS = newSize;
+  }
+
+  return 0;
 }
 
 int InitiateRents() {
@@ -98,11 +103,16 @@ int InitiateRents() {
 
     int i;
 
+    Rent lastRent;
+
     for (i = 0; i < totalRents; i++) {
       if (RENTS[i].code != -1) {
         TOTAL_RENTS++;
+        lastRent = RENTS[i];
       }
     }
+
+    NEXT_RENT_CODE = TOTAL_RENTS > 0 ? lastRent.code + 1 : NEXT_RENT_CODE;
   } else {
     RENTS = (Rent*) malloc(MAX_RENTS * sizeof(Rent));
   
@@ -138,7 +148,16 @@ int SaveRent(Rent rent) {
   int index = GetRentsEmptyIndex();
 
   if (index == -1) {
-    return 1;
+    Rent* newRents = (Rent*) realloc(RENTS, (MAX_RENTS + 1) * sizeof(Rent));
+
+    if (!newRents) {
+      return 1;
+    }
+
+    RENTS = newRents;
+    MAX_RENTS++;
+
+    index = MAX_RENTS - 1;
   }
 
   Dragon* dragonFound = GetDragonByCode(rent.dragonCode);

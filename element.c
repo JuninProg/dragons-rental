@@ -12,54 +12,6 @@ char* ELEMENTS_FILE_PATH = "./data/elements.bin";
 
 Element* ELEMENTS;
 
-int EndElements() {
-  FILE *elementsFile = fopen(ELEMENTS_FILE_PATH, "wb");
-
-  if (elementsFile == NULL) {
-    return 1;
-  }
-
-  fwrite(ELEMENTS, sizeof(Element), MAX_ELEMENTS, elementsFile);
-
-  fclose(elementsFile);
-
-  return 0;
-}
-
-int ResizeElements() {
-  int actualPercent = TOTAL_ELEMENTS * 100 / MAX_ELEMENTS;
-
-  if (actualPercent > 0 && actualPercent < 40) {
-    Element* ELEMENTS_COPY = (Element*) malloc(TOTAL_ELEMENTS * sizeof(Element));
-
-    if (!ELEMENTS_COPY) {
-      return 1;
-    }
-
-    int i;
-
-    for (i = 0; i < MAX_ELEMENTS; i++) {
-      if (ELEMENTS[i].code != -1) {
-        ELEMENTS_COPY[i] = ELEMENTS[i];
-      }
-    }
-
-    int newSize = MAX_ELEMENTS;
-
-    while ((TOTAL_ELEMENTS * 100 / newSize) < 60) {
-      newSize--;
-    }
-    
-    ELEMENTS = (Element*) realloc(ELEMENTS, newSize * sizeof(Element));
-
-    for (i = 0; i < TOTAL_ELEMENTS; i++) {
-      ELEMENTS[i] = ELEMENTS_COPY[i];
-    }
-  }
-
-  return 0;
-}
-
 Element GetBlankElement() {
   Element blankElement;
 
@@ -68,6 +20,60 @@ Element GetBlankElement() {
   strcpy(blankElement.vulnerability, "");
 
   return blankElement;
+}
+
+int EndElements() {
+  FILE *elementsFile = fopen(ELEMENTS_FILE_PATH, "wb");
+
+  if (elementsFile != NULL) {
+    fwrite(ELEMENTS, sizeof(Element), MAX_ELEMENTS, elementsFile);
+    fclose(elementsFile);
+  }
+
+  free(ELEMENTS);
+
+  return 0;
+}
+
+int ResizeElements() {
+  int actualPercent = TOTAL_ELEMENTS * 100 / MAX_ELEMENTS;
+
+  if (actualPercent > 0 && actualPercent < 40) {
+    int newSize = MAX_ELEMENTS;
+
+    while ((TOTAL_ELEMENTS * 100 / newSize) < 60) {
+      newSize--;
+    }
+
+    // deixo buracos no meu array de elementos
+    Element* newElements = (Element*) malloc(newSize * sizeof(Element));
+
+    if (!newElements) {
+      return 1;
+    }
+
+    int i;
+
+    for (i = 0; i < newSize; i++) {
+      newElements[i] = GetBlankElement();
+    }
+
+    int newIndex = 0;
+
+    for (i = 0; i < MAX_ELEMENTS; i++) {
+      if (ELEMENTS[i].code != -1) {
+        newElements[newIndex] = ELEMENTS[i];
+        newIndex++;
+      }
+    }
+
+    free(ELEMENTS);
+
+    ELEMENTS = newElements;
+    MAX_ELEMENTS = newSize;
+  }
+
+  return 0;
 }
 
 int InitiateElements() {
@@ -93,11 +99,16 @@ int InitiateElements() {
 
     int i;
 
+    Element lastElement;
+
     for (i = 0; i < totalElements; i++) {
       if (ELEMENTS[i].code != -1) {
         TOTAL_ELEMENTS++;
+        lastElement = ELEMENTS[i];
       }
     }
+
+    NEXT_ELEMENT_CODE = TOTAL_ELEMENTS > 0 ? lastElement.code + 1 : NEXT_ELEMENT_CODE;
   } else {
     ELEMENTS = (Element*) malloc(MAX_ELEMENTS * sizeof(Element));
   
@@ -133,7 +144,16 @@ int SaveElement(Element element) {
   int index = GetElementsEmptyIndex();
 
   if (index == -1) {
-    return 1;
+    Element* newElements = (Element*) realloc(ELEMENTS, (MAX_ELEMENTS + 1) * sizeof(Element));
+
+    if (!newElements) {
+      return 1;
+    }
+
+    ELEMENTS = newElements;
+    MAX_ELEMENTS++;
+
+    index = MAX_ELEMENTS - 1;
   }
 
   element.code = NEXT_ELEMENT_CODE;

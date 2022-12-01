@@ -659,7 +659,7 @@ int main() {
   int start = InitiateWarriors() + InitiateDragons() + InitiateElements() + InitiateRents();
 
   if (start > 0) {
-    return 0;
+    return 1;
   }
 
   int option, subOption;
@@ -691,11 +691,5 @@ int main() {
     }
   } while (option != 0);
 
-  int finished = EndWarriors() + EndRents() + EndElements() + EndDragons();
-
-  if (finished != 0) {
-    return 1;
-  }
-
-  return 0;
+  return EndWarriors() + EndRents() + EndElements() + EndDragons();
 }
